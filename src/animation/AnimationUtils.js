@@ -181,9 +181,17 @@ var AnimationUtils = {
 
 			clonedMesh.skeleton = sourceMesh.skeleton.clone();
 
-			clonedMesh.skeleton.bones = sourceBones.map( function ( bone ) {
+			clonedMesh.skeleton.bones = sourceBones.map( function ( sourceBone ) {
 
-				return cloneLookup.get( bone );
+				var clonedBone = cloneLookup.get( sourceBone );
+
+				if ( ! clonedBone ) {
+
+					throw new Error( 'THREE.AnimationUtils: Required bones are not descendants of the given object.' );
+
+				}
+
+				return clonedBone;
 
 			} );
 
