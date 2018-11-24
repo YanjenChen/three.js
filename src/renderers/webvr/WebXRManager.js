@@ -13,6 +13,8 @@ function WebXRManager( renderer ) {
 
 	var gl = renderer.context;
 
+	var mode = 'vr';	// 'vr' or 'ar'.
+
 	var device = null;
 	var session = null;
 
@@ -27,6 +29,16 @@ function WebXRManager( renderer ) {
 	var controllers = [];
 	var inputSources = [];
 
+	function setMode(value) {
+		mode = value;
+	}
+	this.setMode = setMode;
+
+	function getMode(value) {
+		return mode;
+	}
+	this.getMode = getMode;
+
 	function isPresenting() {
 
 		return session !== null && frameOfReference !== null;
@@ -34,6 +46,9 @@ function WebXRManager( renderer ) {
 	}
 
 	//
+
+	var cameraAR = new PerspectiveCamera();
+	cameraAR.matrixAutoUpdate = false;
 
 	var cameraL = new PerspectiveCamera();
 	cameraL.layers.enable( 1 );
@@ -180,34 +195,53 @@ function WebXRManager( renderer ) {
 	this.getCamera = function ( camera ) {
 
 		if ( isPresenting() ) {
+			if( mode == 'ar' ) {
+				var object = poseTarget || camera;
 
-			var parent = camera.parent;
-			var cameras = cameraVR.cameras;
-			var object = poseTarget || camera;
+				cameraAR.updateMatrixWorld(true);
 
-			updateCamera( cameraVR, parent );
+				// update camera and its children
+				object.matrixWorld.copy( cameraAR.matrixWorld );
 
-			for ( var i = 0; i < cameras.length; i ++ ) {
+				var children = object.children;
 
-				updateCamera( cameras[ i ], parent );
+				for ( var i = 0, l = children.length; i < l; i ++ ) {
 
+					children[ i ].updateMatrixWorld( true );
+
+				}
+
+				return cameraAR;
+
+			} else {
+
+				var parent = camera.parent;
+				var cameras = cameraVR.cameras;
+				var object = poseTarget || camera;
+
+				updateCamera( cameraVR, parent );
+
+				for ( var i = 0; i < cameras.length; i ++ ) {
+
+					updateCamera( cameras[ i ], parent );
+
+				}
+
+				// update camera and its children
+				object.matrixWorld.copy( cameraVR.matrixWorld );
+
+				var children = object.children;
+
+				for ( var i = 0, l = children.length; i < l; i ++ ) {
+
+					children[ i ].updateMatrixWorld( true );
+
+				}
+
+				setProjectionFromUnion( cameraVR, cameraL, cameraR );
+
+				return cameraVR;
 			}
-
-			// update camera and its children
-			object.matrixWorld.copy( cameraVR.matrixWorld );
-
-			var children = object.children;
-
-			for ( var i = 0, l = children.length; i < l; i ++ ) {
-
-				children[ i ].updateMatrixWorld( true );
-
-			}
-
-			setProjectionFromUnion( cameraVR, cameraL, cameraR );
-
-			return cameraVR;
-
 		}
 
 		return camera;
@@ -224,6 +258,10 @@ function WebXRManager( renderer ) {
 
 		pose = frame.getDevicePose( frameOfReference );
 
+		if( mode == 'ar' ) {
+			gl.bindFramebuffer(gl.FRAMEBUFFER, session.baseLayer.framebuffer);
+		}
+
 		if ( pose !== null ) {
 
 			var layer = session.baseLayer;
@@ -235,14 +273,33 @@ function WebXRManager( renderer ) {
 				var viewport = layer.getViewport( view );
 				var viewMatrix = pose.getViewMatrix( view );
 
-				var camera = cameraVR.cameras[ i ];
+				if (mode == 'ar') {
+
+					renderer.setSize(viewport.width, viewport.height);
+					var camera = cameraAR;
+
+				} else {
+
+					var camera = cameraVR.cameras[ i ];
+
+				}
+
 				camera.matrix.fromArray( viewMatrix ).getInverse( camera.matrix );
 				camera.projectionMatrix.fromArray( view.projectionMatrix );
-				camera.viewport.set( viewport.x, viewport.y, viewport.width, viewport.height );
 
-				if ( i === 0 ) {
+				if (mode == 'ar') {
 
-					cameraVR.matrix.copy( camera.matrix );
+					camera.updateMatrixWorld(true);
+
+				} else {
+
+					camera.viewport.set( viewport.x, viewport.y, viewport.width, viewport.height );
+
+					if ( i === 0 ) {
+
+						cameraVR.matrix.copy( camera.matrix );
+
+					}
 
 				}
 
