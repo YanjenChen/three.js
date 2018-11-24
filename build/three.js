@@ -21763,6 +21763,8 @@
 
 		var gl = renderer.context;
 
+		var mode = 'vr';	// 'vr' or 'ar'.
+
 		var device = null;
 		var session = null;
 
@@ -21777,6 +21779,16 @@
 		var controllers = [];
 		var inputSources = [];
 
+		function setMode(value) {
+			mode = value;
+		}
+		this.setMode = setMode;
+
+		function getMode(value) {
+			return mode;
+		}
+		this.getMode = getMode;
+
 		function isPresenting() {
 
 			return session !== null && frameOfReference !== null;
@@ -21784,6 +21796,9 @@
 		}
 
 		//
+
+		var cameraAR = new PerspectiveCamera();
+		cameraAR.matrixAutoUpdate = false;
 
 		var cameraL = new PerspectiveCamera();
 		cameraL.layers.enable( 1 );
@@ -21930,34 +21945,53 @@
 		this.getCamera = function ( camera ) {
 
 			if ( isPresenting() ) {
+				if( mode == 'ar' ) {
+					var object = poseTarget || camera;
 
-				var parent = camera.parent;
-				var cameras = cameraVR.cameras;
-				var object = poseTarget || camera;
+					cameraAR.updateMatrixWorld(true);
 
-				updateCamera( cameraVR, parent );
+					// update camera and its children
+					object.matrixWorld.copy( cameraAR.matrixWorld );
 
-				for ( var i = 0; i < cameras.length; i ++ ) {
+					var children = object.children;
 
-					updateCamera( cameras[ i ], parent );
+					for ( var i = 0, l = children.length; i < l; i ++ ) {
 
+						children[ i ].updateMatrixWorld( true );
+
+					}
+
+					return cameraAR;
+
+				} else {
+
+					var parent = camera.parent;
+					var cameras = cameraVR.cameras;
+					var object = poseTarget || camera;
+
+					updateCamera( cameraVR, parent );
+
+					for ( var i = 0; i < cameras.length; i ++ ) {
+
+						updateCamera( cameras[ i ], parent );
+
+					}
+
+					// update camera and its children
+					object.matrixWorld.copy( cameraVR.matrixWorld );
+
+					var children = object.children;
+
+					for ( var i = 0, l = children.length; i < l; i ++ ) {
+
+						children[ i ].updateMatrixWorld( true );
+
+					}
+
+					setProjectionFromUnion( cameraVR, cameraL, cameraR );
+
+					return cameraVR;
 				}
-
-				// update camera and its children
-				object.matrixWorld.copy( cameraVR.matrixWorld );
-
-				var children = object.children;
-
-				for ( var i = 0, l = children.length; i < l; i ++ ) {
-
-					children[ i ].updateMatrixWorld( true );
-
-				}
-
-				setProjectionFromUnion( cameraVR, cameraL, cameraR );
-
-				return cameraVR;
-
 			}
 
 			return camera;
@@ -21974,6 +22008,10 @@
 
 			pose = frame.getDevicePose( frameOfReference );
 
+			if( mode == 'ar' ) {
+				gl.bindFramebuffer(36160, session.baseLayer.framebuffer);
+			}
+
 			if ( pose !== null ) {
 
 				var layer = session.baseLayer;
@@ -21985,14 +22023,33 @@
 					var viewport = layer.getViewport( view );
 					var viewMatrix = pose.getViewMatrix( view );
 
-					var camera = cameraVR.cameras[ i ];
+					if (mode == 'ar') {
+
+						renderer.setSize(viewport.width, viewport.height);
+						var camera = cameraAR;
+
+					} else {
+
+						var camera = cameraVR.cameras[ i ];
+
+					}
+
 					camera.matrix.fromArray( viewMatrix ).getInverse( camera.matrix );
 					camera.projectionMatrix.fromArray( view.projectionMatrix );
-					camera.viewport.set( viewport.x, viewport.y, viewport.width, viewport.height );
 
-					if ( i === 0 ) {
+					if (mode == 'ar') {
 
-						cameraVR.matrix.copy( camera.matrix );
+						camera.updateMatrixWorld(true);
+
+					} else {
+
+						camera.viewport.set( viewport.x, viewport.y, viewport.width, viewport.height );
+
+						if ( i === 0 ) {
+
+							cameraVR.matrix.copy( camera.matrix );
+
+						}
 
 					}
 
@@ -22322,17 +22379,17 @@
 
 		initGLContext();
 
-		// vr
+		// xr
 
-		var vr = null;
+		var xr = null;
 
 		if ( typeof navigator !== 'undefined' ) {
 
-			vr = ( 'xr' in navigator ) ? new WebXRManager( _this ) : new WebVRManager( _this );
+			xr = ( 'xr' in navigator ) ? new WebXRManager( _this ) : new WebVRManager( _this );
 
 		}
 
-		this.vr = vr;
+		this.xr = xr;
 
 		// shadow map
 
@@ -22395,7 +22452,7 @@
 
 		this.setSize = function ( width, height, updateStyle ) {
 
-			if ( vr.isPresenting() ) {
+			if ( xr.isPresenting() && xr.getMode() == 'vr' ) {
 
 				console.warn( 'THREE.WebGLRenderer: Can\'t change size while VR device is presenting.' );
 				return;
@@ -22536,7 +22593,7 @@
 			properties.dispose();
 			objects.dispose();
 
-			vr.dispose();
+			xr.dispose();
 
 			animation.stop();
 
@@ -23027,7 +23084,7 @@
 
 		function onAnimationFrame( time ) {
 
-			if ( vr.isPresenting() ) return;
+			if ( xr.isPresenting() ) return;
 			if ( onAnimationFrameCallback ) onAnimationFrameCallback( time );
 
 		}
@@ -23040,7 +23097,7 @@
 		this.setAnimationLoop = function ( callback ) {
 
 			onAnimationFrameCallback = callback;
-			vr.setAnimationLoop( callback );
+			xr.setAnimationLoop( callback );
 
 			animation.start();
 
@@ -23075,9 +23132,9 @@
 
 			if ( camera.parent === null ) camera.updateMatrixWorld();
 
-			if ( vr.enabled ) {
+			if ( xr.enabled ) {
 
-				camera = vr.getCamera( camera );
+				camera = xr.getCamera( camera );
 
 			}
 
@@ -23175,9 +23232,9 @@
 
 			scene.onAfterRender( _this, scene, camera );
 
-			if ( vr.enabled ) {
+			if ( xr.enabled ) {
 
-				vr.submitFrame();
+				xr.submitFrame();
 
 			}
 
@@ -31038,7 +31095,7 @@
 
 
 
-	var Geometries = Object.freeze({
+	var Geometries = /*#__PURE__*/Object.freeze({
 		WireframeGeometry: WireframeGeometry,
 		ParametricGeometry: ParametricGeometry,
 		ParametricBufferGeometry: ParametricBufferGeometry,
@@ -31939,7 +31996,7 @@
 
 
 
-	var Materials = Object.freeze({
+	var Materials = /*#__PURE__*/Object.freeze({
 		ShadowMaterial: ShadowMaterial,
 		SpriteMaterial: SpriteMaterial,
 		RawShaderMaterial: RawShaderMaterial,
@@ -34443,6 +34500,7 @@
 	 * @author mrdoob / http://mrdoob.com/
 	 */
 
+
 	function ImageLoader( manager ) {
 
 		this.manager = ( manager !== undefined ) ? manager : DefaultLoadingManager;
@@ -34545,6 +34603,7 @@
 	 * @author mrdoob / http://mrdoob.com/
 	 */
 
+
 	function CubeTextureLoader( manager ) {
 
 		this.manager = ( manager !== undefined ) ? manager : DefaultLoadingManager;
@@ -34614,6 +34673,7 @@
 	/**
 	 * @author mrdoob / http://mrdoob.com/
 	 */
+
 
 	function TextureLoader( manager ) {
 
@@ -35335,9 +35395,7 @@
 	//
 
 	var tmp = new Vector3();
-	var px = new CubicPoly();
-	var py = new CubicPoly();
-	var pz = new CubicPoly();
+	var px = new CubicPoly(), py = new CubicPoly(), pz = new CubicPoly();
 
 	function CatmullRomCurve3( points, closed, curveType, tension ) {
 
@@ -36122,7 +36180,7 @@
 
 
 
-	var Curves = Object.freeze({
+	var Curves = /*#__PURE__*/Object.freeze({
 		ArcCurve: ArcCurve,
 		CatmullRomCurve3: CatmullRomCurve3,
 		CubicBezierCurve: CubicBezierCurve,
@@ -39450,6 +39508,7 @@
 	 * @author thespite / http://clicktorelease.com/
 	 */
 
+
 	function ImageBitmapLoader( manager ) {
 
 		if ( typeof createImageBitmap === 'undefined' ) {
@@ -39834,6 +39893,7 @@
 	 * @author zz85 / http://www.lab4games.net/zz85/blog
 	 * @author mrdoob / http://mrdoob.com/
 	 */
+
 
 	function Font( data ) {
 
@@ -45891,8 +45951,7 @@
 	 *  headWidth - Number
 	 */
 
-	var lineGeometry;
-	var coneGeometry;
+	var lineGeometry, coneGeometry;
 
 	function ArrowHelper( dir, origin, length, color, headLength, headWidth ) {
 
