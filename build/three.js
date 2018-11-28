@@ -21895,17 +21895,33 @@
 				session.addEventListener( 'selectend', onSessionEvent );
 				session.addEventListener( 'end', onSessionEnd );
 
-				session.baseLayer = new XRWebGLLayer( session, gl, { framebufferScaleFactor: framebufferScaleFactor } );
-				session.requestFrameOfReference( frameOfReferenceType ).then( function ( value ) {
+				if (mode == 'ar') {
+					gl.setCompatibleXRDevice(session.device).then(function() {
+						session.baseLayer = new XRWebGLLayer( session, gl );
+						session.requestFrameOfReference( frameOfReferenceType ).then( function ( value ) {
 
-					frameOfReference = value;
+							frameOfReference = value;
 
-					renderer.setFramebuffer( session.baseLayer.framebuffer );
+							renderer.setFramebuffer( session.baseLayer.framebuffer );
 
-					animation.setContext( session );
-					animation.start();
+							animation.setContext( session );
+							animation.start();
 
-				} );
+						} );
+					});
+				} else {
+					session.baseLayer = new XRWebGLLayer( session, gl, { framebufferScaleFactor: framebufferScaleFactor } );
+					session.requestFrameOfReference( frameOfReferenceType ).then( function ( value ) {
+
+						frameOfReference = value;
+
+						renderer.setFramebuffer( session.baseLayer.framebuffer );
+
+						animation.setContext( session );
+						animation.start();
+
+					} );
+				}
 
 				//
 
