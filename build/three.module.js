@@ -21789,6 +21789,15 @@ function WebXRManager( renderer ) {
 
 	}
 
+	function getSession() {
+		return session;
+	}
+	this.getSession = getSession;
+
+	function getFrameOfReference() {
+		return frameOfReference;
+	}
+	this.getFrameOfReference = getFrameOfReference;
 	//
 
 	var cameraAR = new PerspectiveCamera();
