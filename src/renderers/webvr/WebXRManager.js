@@ -145,9 +145,11 @@ function WebXRManager( renderer ) {
 			session.addEventListener( 'selectend', onSessionEvent );
 			session.addEventListener( 'end', onSessionEnd );
 
+			console.log('Enter XR manager set session, mode: ', mode);
 			if (mode == 'ar') {
+				console.log('XR Manager is in AR mode. Setting session...');
 				gl.setCompatibleXRDevice(session.device).then(function() {
-					console.log('XR Manager is in AR mode. Setting session...');
+					console.log('Set gl with compatible XRDevice.');
 					session.baseLayer = new XRWebGLLayer( session, gl );
 					session.requestFrameOfReference( frameOfReferenceType ).then( function ( value ) {
 
