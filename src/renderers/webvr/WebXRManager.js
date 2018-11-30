@@ -145,11 +145,11 @@ function WebXRManager( renderer ) {
 			session.addEventListener( 'selectend', onSessionEvent );
 			session.addEventListener( 'end', onSessionEnd );
 
-			console.log('Enter XR manager set session, mode: ', mode);
+			console.warn('Enter XR manager set session, mode: ', mode);
 			if (mode == 'ar') {
-				console.log('XR Manager is in AR mode. Setting session...');
+				console.warn('XR Manager is in AR mode. Setting session...');
 				gl.setCompatibleXRDevice(session.device).then(function() {
-					console.log('Set gl with compatible XRDevice.');
+					console.warn('Set gl with compatible XRDevice.');
 					session.baseLayer = new XRWebGLLayer( session, gl );
 					session.requestFrameOfReference( frameOfReferenceType ).then( function ( value ) {
 
@@ -163,6 +163,8 @@ function WebXRManager( renderer ) {
 					} );
 				});
 			} else {
+				console.warn('Enter XR manager set session, mode: ', mode);
+
 				session.baseLayer = new XRWebGLLayer( session, gl, { framebufferScaleFactor: framebufferScaleFactor } );
 				session.requestFrameOfReference( frameOfReferenceType ).then( function ( value ) {
 
