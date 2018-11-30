@@ -34,7 +34,7 @@ function WebXRManager( renderer ) {
 	}
 	this.setMode = setMode;
 
-	function getMode(value) {
+	function getMode() {
 		return mode;
 	}
 	this.getMode = getMode;
