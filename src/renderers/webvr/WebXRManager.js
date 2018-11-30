@@ -147,6 +147,7 @@ function WebXRManager( renderer ) {
 
 			if (mode == 'ar') {
 				gl.setCompatibleXRDevice(session.device).then(function() {
+					console.log('XR Manager is in AR mode. Setting session...');
 					session.baseLayer = new XRWebGLLayer( session, gl );
 					session.requestFrameOfReference( frameOfReferenceType ).then( function ( value ) {
 
