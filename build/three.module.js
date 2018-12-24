@@ -13079,42 +13079,42 @@ ShaderMaterial.prototype.toJSON = function ( meta ) {
 		var uniform = this.uniforms[ name ];
 		var value = uniform.value;
 
-		if ( value.isTexture ) {
+		if ( value && value.isTexture ) {
 
 			data.uniforms[ name ] = {
 				type: 't',
 				value: value.toJSON( meta ).uuid
 			};
 
-		} else if ( value.isColor ) {
+		} else if ( value && value.isColor ) {
 
 			data.uniforms[ name ] = {
 				type: 'c',
 				value: value.getHex()
 			};
 
-		} else if ( value.isVector2 ) {
+		} else if ( value && value.isVector2 ) {
 
 			data.uniforms[ name ] = {
 				type: 'v2',
 				value: value.toArray()
 			};
 
-		} else if ( value.isVector3 ) {
+		} else if ( value && value.isVector3 ) {
 
 			data.uniforms[ name ] = {
 				type: 'v3',
 				value: value.toArray()
 			};
 
-		} else if ( value.isVector4 ) {
+		} else if ( value && value.isVector4 ) {
 
 			data.uniforms[ name ] = {
 				type: 'v4',
 				value: value.toArray()
 			};
 
-		} else if ( value.isMatrix4 ) {
+		} else if ( value && value.isMatrix4 ) {
 
 			data.uniforms[ name ] = {
 				type: 'm4',
@@ -21821,6 +21821,8 @@ function WebXRManager( renderer ) {
 
 	var gl = renderer.context;
 
+	var mode = 'vr';	// 'vr' or 'ar'.
+
 	var device = null;
 	var session = null;
 
@@ -21830,9 +21832,20 @@ function WebXRManager( renderer ) {
 	var frameOfReferenceType = 'stage';
 
 	var pose = null;
+	var poseTarget = null;
 
 	var controllers = [];
 	var inputSources = [];
+
+	function setMode(value) {
+		mode = value;
+	}
+	this.setMode = setMode;
+
+	function getMode() {
+		return mode;
+	}
+	this.getMode = getMode;
 
 	function isPresenting() {
 
@@ -21840,7 +21853,19 @@ function WebXRManager( renderer ) {
 
 	}
 
+	function getSession() {
+		return session;
+	}
+	this.getSession = getSession;
+
+	function getFrameOfReference() {
+		return frameOfReference;
+	}
+	this.getFrameOfReference = getFrameOfReference;
 	//
+
+	var cameraAR = new PerspectiveCamera();
+	cameraAR.matrixAutoUpdate = false;
 
 	var cameraL = new PerspectiveCamera();
 	cameraL.layers.enable( 1 );
@@ -21928,17 +21953,33 @@ function WebXRManager( renderer ) {
 			session.addEventListener( 'selectend', onSessionEvent );
 			session.addEventListener( 'end', onSessionEnd );
 
-			session.baseLayer = new XRWebGLLayer( session, gl, { framebufferScaleFactor: framebufferScaleFactor } );
-			session.requestFrameOfReference( frameOfReferenceType ).then( function ( value ) {
+			if (mode == 'ar') {
+				gl.setCompatibleXRDevice(session.device).then(function() {
+					session.baseLayer = new XRWebGLLayer( session, gl );
+					session.requestFrameOfReference( frameOfReferenceType ).then( function ( value ) {
 
-				frameOfReference = value;
+						frameOfReference = value;
 
-				renderer.setFramebuffer( session.baseLayer.framebuffer );
+						renderer.setFramebuffer( session.baseLayer.framebuffer );
 
-				animation.setContext( session );
-				animation.start();
+						animation.setContext( session );
+						animation.start();
 
-			} );
+					} );
+				});
+			} else {
+				session.baseLayer = new XRWebGLLayer( session, gl, { framebufferScaleFactor: framebufferScaleFactor } );
+				session.requestFrameOfReference( frameOfReferenceType ).then( function ( value ) {
+
+					frameOfReference = value;
+
+					renderer.setFramebuffer( session.baseLayer.framebuffer );
+
+					animation.setContext( session );
+					animation.start();
+
+				} );
+			}
 
 			//
 
@@ -21978,37 +22019,62 @@ function WebXRManager( renderer ) {
 
 	}
 
+	this.setPoseTarget = function ( object ) {
+
+		if ( object !== undefined ) poseTarget = object;
+
+	};
+
 	this.getCamera = function ( camera ) {
 
 		if ( isPresenting() ) {
+			if( mode == 'ar' ) {
+				var object = poseTarget || camera;
 
-			var parent = camera.parent;
-			var cameras = cameraVR.cameras;
+				cameraAR.updateMatrixWorld(true);
 
-			updateCamera( cameraVR, parent );
+				// update camera and its children
+				object.matrixWorld.copy( cameraAR.matrixWorld );
 
-			for ( var i = 0; i < cameras.length; i ++ ) {
+				var children = object.children;
 
-				updateCamera( cameras[ i ], parent );
+				for ( var i = 0, l = children.length; i < l; i ++ ) {
 
+					children[ i ].updateMatrixWorld( true );
+
+				}
+
+				return cameraAR;
+
+			} else {
+
+				var parent = camera.parent;
+				var cameras = cameraVR.cameras;
+				var object = poseTarget || camera;
+
+				updateCamera( cameraVR, parent );
+
+				for ( var i = 0; i < cameras.length; i ++ ) {
+
+					updateCamera( cameras[ i ], parent );
+
+				}
+
+				// update camera and its children
+				object.matrixWorld.copy( cameraVR.matrixWorld );
+
+				var children = object.children;
+
+				for ( var i = 0, l = children.length; i < l; i ++ ) {
+
+					children[ i ].updateMatrixWorld( true );
+
+				}
+
+				setProjectionFromUnion( cameraVR, cameraL, cameraR );
+
+				return cameraVR;
 			}
-
-			// update camera and its children
-
-			camera.matrixWorld.copy( cameraVR.matrixWorld );
-
-			var children = camera.children;
-
-			for ( var i = 0, l = children.length; i < l; i ++ ) {
-
-				children[ i ].updateMatrixWorld( true );
-
-			}
-
-			setProjectionFromUnion( cameraVR, cameraL, cameraR );
-
-			return cameraVR;
-
 		}
 
 		return camera;
@@ -22025,6 +22091,10 @@ function WebXRManager( renderer ) {
 
 		pose = frame.getDevicePose( frameOfReference );
 
+		if( mode == 'ar' ) {
+			gl.bindFramebuffer(36160, session.baseLayer.framebuffer);
+		}
+
 		if ( pose !== null ) {
 
 			var layer = session.baseLayer;
@@ -22036,14 +22106,33 @@ function WebXRManager( renderer ) {
 				var viewport = layer.getViewport( view );
 				var viewMatrix = pose.getViewMatrix( view );
 
-				var camera = cameraVR.cameras[ i ];
+				if (mode == 'ar') {
+
+					renderer.setSize(viewport.width, viewport.height);
+					var camera = cameraAR;
+
+				} else {
+
+					var camera = cameraVR.cameras[ i ];
+
+				}
+
 				camera.matrix.fromArray( viewMatrix ).getInverse( camera.matrix );
 				camera.projectionMatrix.fromArray( view.projectionMatrix );
-				camera.viewport.set( viewport.x, viewport.y, viewport.width, viewport.height );
 
-				if ( i === 0 ) {
+				if (mode == 'ar') {
 
-					cameraVR.matrix.copy( camera.matrix );
+					camera.updateMatrixWorld(true);
+
+				} else {
+
+					camera.viewport.set( viewport.x, viewport.y, viewport.width, viewport.height );
+
+					if ( i === 0 ) {
+
+						cameraVR.matrix.copy( camera.matrix );
+
+					}
 
 				}
 
@@ -22090,7 +22179,7 @@ function WebXRManager( renderer ) {
 
 		}
 
-		if ( onAnimationFrameCallback ) onAnimationFrameCallback( time );
+		if ( onAnimationFrameCallback ) onAnimationFrameCallback( time, frame );
 
 	}
 
@@ -22373,17 +22462,17 @@ function WebGLRenderer( parameters ) {
 
 	initGLContext();
 
-	// vr
+	// xr
 
-	var vr = null;
+	var xr = null;
 
 	if ( typeof navigator !== 'undefined' ) {
 
-		vr = ( 'xr' in navigator ) ? new WebXRManager( _this ) : new WebVRManager( _this );
+		xr = ( 'xr' in navigator ) ? new WebXRManager( _this ) : new WebVRManager( _this );
 
 	}
 
-	this.vr = vr;
+	this.xr = xr;
 
 	// shadow map
 
@@ -22446,7 +22535,7 @@ function WebGLRenderer( parameters ) {
 
 	this.setSize = function ( width, height, updateStyle ) {
 
-		if ( vr.isPresenting() ) {
+		if ( xr.isPresenting() && xr.getMode() == 'vr' ) {
 
 			console.warn( 'THREE.WebGLRenderer: Can\'t change size while VR device is presenting.' );
 			return;
@@ -22587,7 +22676,7 @@ function WebGLRenderer( parameters ) {
 		properties.dispose();
 		objects.dispose();
 
-		vr.dispose();
+		xr.dispose();
 
 		animation.stop();
 
@@ -23078,7 +23167,7 @@ function WebGLRenderer( parameters ) {
 
 	function onAnimationFrame( time ) {
 
-		if ( vr.isPresenting() ) return;
+		if ( xr.isPresenting() ) return;
 		if ( onAnimationFrameCallback ) onAnimationFrameCallback( time );
 
 	}
@@ -23091,7 +23180,7 @@ function WebGLRenderer( parameters ) {
 	this.setAnimationLoop = function ( callback ) {
 
 		onAnimationFrameCallback = callback;
-		vr.setAnimationLoop( callback );
+		xr.setAnimationLoop( callback );
 
 		animation.start();
 
@@ -23126,9 +23215,9 @@ function WebGLRenderer( parameters ) {
 
 		if ( camera.parent === null ) camera.updateMatrixWorld();
 
-		if ( vr.enabled ) {
+		if ( xr.enabled ) {
 
-			camera = vr.getCamera( camera );
+			camera = xr.getCamera( camera );
 
 		}
 
@@ -23226,9 +23315,9 @@ function WebGLRenderer( parameters ) {
 
 		scene.onAfterRender( _this, scene, camera );
 
-		if ( vr.enabled ) {
+		if ( xr.enabled ) {
 
-			vr.submitFrame();
+			xr.submitFrame();
 
 		}
 
@@ -40335,10 +40424,11 @@ PositionalAudio.prototype = Object.assign( Object.create( Audio.prototype ), {
 
 			if ( this.isPlaying === false ) return;
 
-			var panner = this.panner;
 			this.matrixWorld.decompose( position, quaternion, scale );
 
 			orientation.set( 0, 0, 1 ).applyQuaternion( quaternion );
+
+			var panner = this.panner;
 
 			if ( panner.positionX ) {
 
