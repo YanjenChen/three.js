@@ -22089,7 +22089,7 @@ function WebXRManager( renderer ) {
 
 	function onAnimationFrame( time, frame ) {
 
-		pose = frame.getDevicePose( frameOfReference );
+		pose = frame.getViewerPose( frameOfReference );
 
 		if( mode == 'ar' ) {
 			gl.bindFramebuffer(36160, session.baseLayer.framebuffer);
