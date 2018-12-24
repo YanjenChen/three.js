@@ -90,7 +90,6 @@ var files = {
 		"webgl_loader_gltf",
 		"webgl_loader_gltf_extensions",
 		"webgl_loader_imagebitmap",
-		"webgl_loader_json",
 		"webgl_loader_json_claraio",
 		"webgl_loader_kmz",
 		"webgl_loader_md2",
@@ -199,8 +198,6 @@ var files = {
 		"webgl_multiple_scenes_comparison",
 		"webgl_multiple_views",
 		"webgl_nearestneighbour",
-		"webgl_octree",
-		"webgl_octree_raycasting",
 		"webgl_panorama_cube",
 		"webgl_panorama_dualfisheye",
 		"webgl_panorama_equirectangular",
@@ -315,8 +312,8 @@ var files = {
 	],
 	"webgl2": [
 		"webgl2_materials_texture3d",
-		"webgl2_materials_texture3d_volume"
-		// "webgl2_sandbox"
+		"webgl2_materials_texture3d_volume",
+		"webgl2_sandbox"
 	],
 	"webaudio": [
 		"webaudio_orientation",
