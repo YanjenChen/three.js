@@ -21829,7 +21829,7 @@ function WebXRManager( renderer ) {
 	var framebufferScaleFactor = 1.0;
 
 	var frameOfReference = null;
-	var frameOfReferenceType = 'stage';
+	var frameOfReferenceType = {type: 'stationary', subtype: 'stage'};
 
 	var pose = null;
 	var poseTarget = null;
@@ -21910,7 +21910,7 @@ function WebXRManager( renderer ) {
 	this.setDevice = function ( value ) {
 
 		if ( value !== undefined ) device = value;
-		if ( value instanceof XRDevice ) gl.setCompatibleXRDevice( value );
+		if ( value instanceof XRDevice ) gl.makeXRCompatible();
 
 	};
 
@@ -21954,9 +21954,9 @@ function WebXRManager( renderer ) {
 			session.addEventListener( 'end', onSessionEnd );
 
 			if (mode == 'ar') {
-				gl.setCompatibleXRDevice(session.device).then(function() {
+				gl.makeXRCompatible().then(function() {
 					session.baseLayer = new XRWebGLLayer( session, gl );
-					session.requestFrameOfReference( frameOfReferenceType ).then( function ( value ) {
+					session.requestReferenceSpace( frameOfReferenceType ).then( function ( value ) {
 
 						frameOfReference = value;
 
@@ -21969,7 +21969,7 @@ function WebXRManager( renderer ) {
 				});
 			} else {
 				session.baseLayer = new XRWebGLLayer( session, gl, { framebufferScaleFactor: framebufferScaleFactor } );
-				session.requestFrameOfReference( frameOfReferenceType ).then( function ( value ) {
+				session.requestReferenceSpace( frameOfReferenceType ).then( function ( value ) {
 
 					frameOfReference = value;
 
